@@ -4,6 +4,8 @@ Reusable OTP + JWT token service for app-specific contributor or access flows.
 
 This folder is self-contained and can be used as its own Git repo root.
 
+Architecture walkthrough: [ARCHITECTURE.md](/home/chinu/token-generator/ARCHITECTURE.md)
+
 ## Structure
 
 ```text
