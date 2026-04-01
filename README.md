@@ -163,10 +163,12 @@ MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USERNAME=your-email@gmail.com
 MAIL_PASSWORD=your-gmail-app-password
-REDIS_HOST=redis
+REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=
 ```
+
+For Docker, `docker-compose.yml` overrides `REDIS_HOST` to `redis`.
 
 Optional UI env file for custom API or hosted environments:
 
@@ -179,6 +181,78 @@ cp .env.example .env.local
 
 ```bash
 VITE_API_BASE_URL=http://localhost:8081/api/v1/token
+```
+
+## Deploy On Vercel + Railway
+
+Production setup for this repo is:
+
+- `ui/` on Vercel
+- `service/` on Railway
+- Vercel rewrites `/api/v1/token/*` to the Railway service
+
+### Railway Service
+
+In Railway, create a service from this repo and set:
+
+- Root Directory: `service`
+- Public domain target port: `8081`
+
+Recommended Railway variables on the `token-generator` service:
+
+```bash
+PORT=8081
+JWT_SECRET=your-shared-jwt-secret
+APP_CORS_ALLOWED_ORIGINS=https://your-token-generator.vercel.app
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+REDIS_HOST=${{Redis.REDISHOST}}
+REDIS_PORT=${{Redis.REDISPORT}}
+REDIS_PASSWORD=${{Redis.REDISPASSWORD}}
+```
+
+Notes:
+
+- Replace `Redis` with your actual Railway Redis service name if it is different.
+- Keep `JWT_SECRET` identical to the one used by `interview-bank`.
+- The service reads `PORT`, so it can run correctly on Railway.
+
+### Vercel UI
+
+In Vercel, import this repo and set:
+
+- Root Directory: `ui`
+- Framework Preset: `Vite`
+- Build Command: `npm run build`
+- Output Directory: `dist`
+
+Set Vercel environment variables:
+
+```bash
+VITE_API_BASE_URL=/api/v1/token
+```
+
+This repo's [vercel.json](/home/chinu/token-generator/ui/vercel.json) proxies `/api/v1/token/:path*` to the Railway backend. If you deploy to a different Railway domain, update that file.
+
+### Post-Deploy Checks
+
+Test in this order:
+
+1. Railway health:
+   `https://YOUR-TOKEN-GENERATOR.up.railway.app/actuator/health`
+2. Railway API:
+   `https://YOUR-TOKEN-GENERATOR.up.railway.app/api/v1/token/client/interview-bank`
+3. Vercel proxied API:
+   `https://YOUR-TOKEN-GENERATOR.vercel.app/api/v1/token/client/interview-bank`
+4. Vercel UI:
+   `https://YOUR-TOKEN-GENERATOR.vercel.app/?app=interview-bank`
+
+Expected health response:
+
+```json
+{"status":"UP"}
 ```
 
 ## Integration Contract
