@@ -22,7 +22,8 @@ spring:
       password: ${REDIS_PASSWORD:}
 
 server:
-  port: 8081
+  port: ${PORT:8081}
+  address: 0.0.0.0
 
 app:
   jwt:
