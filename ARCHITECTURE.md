@@ -7,9 +7,9 @@ This document explains how the token-generator works on its own and how it parti
 `token-generator` is a generic OTP + JWT issuing service.
 
 - The `ui/` folder is a Vite React app deployed to Vercel.
-- The `service/` folder is a Spring Boot API deployed to Railway.
+- The `service/` folder is a Spring Boot API that can be deployed to Render.
 - OTP state lives in Redis.
-- OTP emails are sent through SMTP.
+- OTP emails are sent through Resend's HTTPS API.
 - Client apps are configured in `application.yml` under `app.clients`.
 
 The current production flow uses it to issue contributor tokens for `interview-bank`.
@@ -24,18 +24,18 @@ flowchart LR
         UI[Token Generator UI]
     end
 
-    subgraph Railway
+    subgraph Render
         API[Token Generator Service]
         RD[(Redis)]
     end
 
-    SMTP[SMTP Provider]
+    RESEND[Resend API]
     IB[Interview Bank Service]
 
     U --> UI
     UI -->|/api/v1/token/* rewrite| API
     API --> RD
-    API --> SMTP
+    API --> RESEND
     API -. issues JWT .-> U
     U -. pastes JWT .-> IB
 ```
@@ -45,17 +45,17 @@ flowchart LR
 ### UI
 
 - `ui/src/App.tsx`: entire client flow for email, OTP, and token stages
-- `ui/vercel.json`: Vercel rewrite to the Railway backend
+- `ui/vercel.json`: Vercel rewrite to the deployed backend
 
 ### Service
 
 - `service/src/main/java/com/tokengen/controller/TokenController.java`: REST entry points
 - `service/src/main/java/com/tokengen/service/EmailValidationService.java`: domain and MX checks
 - `service/src/main/java/com/tokengen/service/OtpService.java`: Redis-backed OTP storage and verification
-- `service/src/main/java/com/tokengen/service/EmailService.java`: SMTP sending
+- `service/src/main/java/com/tokengen/service/EmailService.java`: Resend email delivery
 - `service/src/main/java/com/tokengen/service/TokenIssuerService.java`: JWT signing
 - `service/src/main/java/com/tokengen/config/ClientRegistry.java`: app client lookup
-- `service/src/main/resources/application.yml`: clients, Redis, mail, JWT, CORS, port
+- `service/src/main/resources/application.yml`: clients, Redis, Resend, JWT, CORS, port
 
 ## Request Flow By API
 
@@ -119,18 +119,18 @@ sequenceDiagram
     participant EV as EmailValidationService
     participant OTP as OtpService
     participant RD as Redis
-    participant SMTP as SMTP Provider
+    participant RESEND as Resend API
 
     B->>UI: Submit company email
     UI->>V: POST /api/v1/token/request-otp
-    V->>API: Forward to Railway service
+    V->>API: Forward to backend service
     API->>EV: validate(email, requireWorkEmail)
     EV-->>API: valid
     API->>OTP: generateAndStore(email:clientId)
     OTP->>RD: SET otp + attempts with TTL
     RD-->>OTP: OK
-    API->>SMTP: send OTP email
-    SMTP-->>API: accepted
+    API->>RESEND: send OTP email
+    RESEND-->>API: accepted
     API-->>UI: success message
 ```
 
@@ -168,7 +168,7 @@ sequenceDiagram
 
     B->>UI: Submit 6-digit OTP
     UI->>V: POST /api/v1/token/verify-otp
-    V->>API: Forward to Railway service
+    V->>API: Forward to backend service
     API->>OTP: validateAndConsume(email:clientId, otp)
     OTP->>RD: GET attempts + GET otp
     RD-->>OTP: stored values
@@ -213,7 +213,7 @@ There is no live server-to-server call back to token-generator at submit time.
 4. Client-side checks immediately reject obvious personal/disposable domains.
 5. Server-side validation confirms the domain can receive email.
 6. User requests an OTP.
-7. The OTP is stored in Redis with TTL and emailed through SMTP.
+7. The OTP is stored in Redis with TTL and emailed through Resend.
 8. User enters the OTP.
 9. Redis-backed verification succeeds.
 10. A signed JWT is issued and displayed.
@@ -225,6 +225,6 @@ There is no live server-to-server call back to token-generator at submit time.
 - That means `/actuator/health` or client info endpoints can work even if Redis has not yet been tested.
 - Production routing is:
   - Vercel for `ui/`
-  - Railway for `service/`
+  - Render for `service/`
   - Redis for OTP state
-  - SMTP for email delivery
+  - Resend for email delivery

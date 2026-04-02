@@ -161,10 +161,9 @@ Repo root `.env`:
 
 ```bash
 JWT_SECRET=change-me-to-a-strong-random-secret-at-least-32-chars
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USERNAME=your-email@gmail.com
-MAIL_PASSWORD=your-gmail-app-password
+RESEND_API_KEY=re_xxxxxxxxx
+RESEND_FROM_EMAIL=noreply@example.com
+RESEND_FROM_NAME=Interview Bank
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=
@@ -185,41 +184,62 @@ cp .env.example .env.local
 VITE_API_BASE_URL=http://localhost:8081/api/v1/token
 ```
 
-## Deploy On Vercel + Railway
+## Deploy On Vercel + Render
 
 Production setup for this repo is:
 
 - `ui/` on Vercel
-- `service/` on Railway
-- Vercel rewrites `/api/v1/token/*` to the Railway service
+- `service/` on Render
+- Redis on Render Key Value
+- OTP email through Resend
+- Vercel rewrites `/api/v1/token/*` to the deployed backend service
 
-### Railway Service
+### Render Service
 
-In Railway, create a service from this repo and set:
+In Render, create a Web Service from this repo and set:
 
-- Root Directory: `service`
-- Public domain target port: `8081`
+- Runtime: `Docker`
+- Dockerfile Path: `service/Dockerfile`
+- Health Check Path: `/actuator/health`
 
-Recommended Railway variables on the `token-generator` service:
+Recommended Render variables on the `token-generator` service:
 
 ```bash
 PORT=8081
 JWT_SECRET=your-shared-jwt-secret
 APP_CORS_ALLOWED_ORIGINS=https://your-token-generator.vercel.app
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USERNAME=your-email@gmail.com
-MAIL_PASSWORD=your-app-password
-REDIS_HOST=${{Redis.REDISHOST}}
-REDIS_PORT=${{Redis.REDISPORT}}
-REDIS_PASSWORD=${{Redis.REDISPASSWORD}}
+RESEND_API_KEY=re_xxxxxxxxx
+RESEND_FROM_EMAIL=noreply@your-domain.com
+RESEND_FROM_NAME=Interview Bank
+REDIS_HOST=<render-key-value-host>
+REDIS_PORT=<render-key-value-port>
+REDIS_PASSWORD=<render-key-value-password-if-set>
 ```
 
 Notes:
 
-- Replace `Redis` with your actual Railway Redis service name if it is different.
+- Create a Resend account, verify your sending domain, and create an API key before deploying.
+- Replace the Redis values with your Render Key Value connection details.
 - Keep `JWT_SECRET` identical to the one used by `interview-bank`.
-- The service reads `PORT`, so it can run correctly on Railway.
+- The service reads `PORT`, so it can run correctly on Render.
+- Render free services can spin down after inactivity, so expect a cold start after idle time.
+
+### Render Key Value
+
+Create a Render Key Value instance in the same region as the service, then copy:
+
+- host -> `REDIS_HOST`
+- port -> `REDIS_PORT`
+- password -> `REDIS_PASSWORD` if auth is enabled
+
+### Resend
+
+Before the service can send OTP emails:
+
+1. Create a Resend account
+2. Add and verify a sending domain
+3. Create an API key
+4. Use a verified sender address in `RESEND_FROM_EMAIL`
 
 ### Vercel UI
 
@@ -236,16 +256,16 @@ Set Vercel environment variables:
 VITE_API_BASE_URL=/api/v1/token
 ```
 
-This repo's [vercel.json](/home/chinu/token-generator/ui/vercel.json) proxies `/api/v1/token/:path*` to the Railway backend. If you deploy to a different Railway domain, update that file.
+This repo's [vercel.json](/home/chinu/token-generator/ui/vercel.json) currently proxies `/api/v1/token/:path*` to the old Railway backend. When you cut over to Render, update only that destination URL. The UI code itself does not need to change.
 
 ### Post-Deploy Checks
 
 Test in this order:
 
-1. Railway health:
-   `https://YOUR-TOKEN-GENERATOR.up.railway.app/actuator/health`
-2. Railway API:
-   `https://YOUR-TOKEN-GENERATOR.up.railway.app/api/v1/token/client/interview-bank`
+1. Render health:
+   `https://YOUR-TOKEN-GENERATOR.onrender.com/actuator/health`
+2. Render API:
+   `https://YOUR-TOKEN-GENERATOR.onrender.com/api/v1/token/client/interview-bank`
 3. Vercel proxied API:
    `https://YOUR-TOKEN-GENERATOR.vercel.app/api/v1/token/client/interview-bank`
 4. Vercel UI:
@@ -255,6 +275,42 @@ Expected health response:
 
 ```json
 {"status":"UP"}
+```
+
+## Exact Local Run Commands With Resend
+
+Terminal 1:
+
+```bash
+cd /home/chinu/token-generator
+docker compose up redis -d
+```
+
+Terminal 2:
+
+```bash
+cd /home/chinu/token-generator/service
+mvn spring-boot:run
+```
+
+Terminal 3:
+
+```bash
+cd /home/chinu/token-generator/ui
+npm install
+npm run dev
+```
+
+Required repo-root `.env` values:
+
+```bash
+JWT_SECRET=change-me-to-a-strong-random-secret-at-least-32-chars
+RESEND_API_KEY=re_xxxxxxxxx
+RESEND_FROM_EMAIL=noreply@your-domain.com
+RESEND_FROM_NAME=Interview Bank
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
 ```
 
 ## Integration Contract

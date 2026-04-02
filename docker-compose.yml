@@ -25,10 +25,9 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
-      MAIL_PORT: ${MAIL_PORT:-587}
-      MAIL_USERNAME: ${MAIL_USERNAME:-your-email@gmail.com}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-your-app-password}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
+      RESEND_FROM_NAME: ${RESEND_FROM_NAME:-Interview Bank}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production-minimum-256-bits-long}
       APP_CORS_ALLOWED_ORIGINS: http://localhost:5174
     ports:

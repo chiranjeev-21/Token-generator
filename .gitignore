@@ -1,5 +1,6 @@
 .env
 backend/target/
+service/target/
 ui/node_modules/
 ui/dist/
 .idea/
