@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/v1/token/:path*",
-      "destination": "https://token-generator-production-cd1d.up.railway.app/api/v1/token/:path*"
+      "destination": "https://token-generator-vyb9.onrender.com/api/v1/token/:path*"
     },
     {
       "source": "/(.*)",
