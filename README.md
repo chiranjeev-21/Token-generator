@@ -2,9 +2,66 @@
 
 Reusable OTP + JWT token service for app-specific contributor or access flows.
 
+![Java](https://img.shields.io/badge/Java-17-437291?style=flat-square)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-6DB33F?style=flat-square)
+![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square)
+![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=flat-square)
+![Deploy](https://img.shields.io/badge/Deploy-Vercel%20%2B%20Render-black?style=flat-square)
+![Email](https://img.shields.io/badge/Email-Resend-000000?style=flat-square)
+![Store](https://img.shields.io/badge/OTP-Redis-DC382D?style=flat-square)
+
 This folder is self-contained and can be used as its own Git repo root.
 
 Architecture walkthrough: [ARCHITECTURE.md](/home/chinu/token-generator/ARCHITECTURE.md)
+
+## At A Glance
+
+```mermaid
+flowchart LR
+    U[User]
+
+    subgraph Vercel
+        UI[Token Generator UI]
+    end
+
+    subgraph Render
+        API[Token Generator Service]
+        RD[(Redis)]
+    end
+
+    RESEND[Resend]
+    IB[Interview Bank]
+
+    U --> UI
+    UI -->|/api/v1/token/*| API
+    API --> RD
+    API --> RESEND
+    API -. issues JWT .-> U
+    U -. pastes token .-> IB
+```
+
+## OTP To JWT Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant UI as Token Generator UI
+    participant API as Token Generator Service
+    participant RD as Redis
+    participant R as Resend
+
+    U->>UI: Enter company email
+    UI->>API: POST /validate-email
+    API-->>UI: email valid
+    U->>UI: Request OTP
+    UI->>API: POST /request-otp
+    API->>RD: store OTP with TTL
+    API->>R: send OTP email
+    U->>UI: Enter OTP
+    UI->>API: POST /verify-otp
+    API->>RD: verify and consume OTP
+    API-->>UI: signed JWT token
+```
 
 ## Structure
 
