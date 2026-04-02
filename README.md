@@ -256,7 +256,7 @@ Set Vercel environment variables:
 VITE_API_BASE_URL=/api/v1/token
 ```
 
-This repo's [vercel.json](/home/chinu/token-generator/ui/vercel.json) currently proxies `/api/v1/token/:path*` to the old Railway backend. When you cut over to Render, update only that destination URL. The UI code itself does not need to change.
+This repo's [vercel.json](/home/chinu/token-generator/ui/vercel.json) proxies `/api/v1/token/:path*` to the deployed backend service. If the Render URL changes later, update only that destination URL. The UI code itself does not need to change.
 
 ### Post-Deploy Checks
 
