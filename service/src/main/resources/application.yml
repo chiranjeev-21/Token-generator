@@ -2,18 +2,6 @@ spring:
   application:
     name: interview-bank-token-generator
 
-  mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
-    port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:your-email@gmail.com}
-    password: ${MAIL_PASSWORD:your-app-password}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-
   # Redis used for OTP storage with TTL
   data:
     redis:
@@ -37,6 +25,13 @@ app:
     length: 6
     ttl-minutes: 10
     max-attempts: 5
+
+  email:
+    resend:
+      api-key: ${RESEND_API_KEY:}
+      from-email: ${RESEND_FROM_EMAIL:}
+      from-name: ${RESEND_FROM_NAME:Interview Bank}
+      base-url: ${RESEND_BASE_URL:https://api.resend.com}
 
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5174,http://localhost:3001}

@@ -1,42 +1,90 @@
 package com.tokengen.service;
 
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
-import jakarta.mail.internet.MimeMessage;
+import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class EmailService {
 
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);
 
-    private final JavaMailSender mailSender;
+    private final RestClient restClient;
 
-    @Value("${spring.mail.username}")
-    private String smtpUsername;
+    @Value("${app.email.resend.api-key:}")
+    private String resendApiKey;
 
-    @Async
+    @Value("${app.email.resend.from-email:}")
+    private String resendFromEmail;
+
+    @Value("${app.email.resend.from-name:Interview Bank}")
+    private String resendFromName;
+
+    public EmailService(@Value("${app.email.resend.base-url:https://api.resend.com}") String baseUrl) {
+        this.restClient = RestClient.builder()
+            .baseUrl(baseUrl)
+            .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+            .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+            .defaultHeader(HttpHeaders.USER_AGENT, "token-generator/1.0")
+            .build();
+    }
+
     public void sendOtp(String toEmail, String otp, int ttlMinutes, String appName) {
+        if (resendApiKey == null || resendApiKey.isBlank()) {
+            throw new RuntimeException("RESEND_API_KEY is not configured.");
+        }
+        if (resendFromEmail == null || resendFromEmail.isBlank()) {
+            throw new RuntimeException("RESEND_FROM_EMAIL is not configured.");
+        }
+
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(smtpUsername, "noreply — " + appName);
-            helper.setTo(toEmail);
-            helper.setSubject("Your verification code — " + appName);
-            helper.setText(buildHtml(otp, ttlMinutes, appName), true);
-            mailSender.send(message);
-            log.info("OTP email sent to={} for app={}", toEmail, appName);
+            ResendSendEmailRequest request = new ResendSendEmailRequest(
+                buildFromHeader(),
+                List.of(toEmail),
+                "Your verification code - " + appName,
+                buildHtml(otp, ttlMinutes, appName)
+            );
+
+            ResendSendEmailResponse response = restClient.post()
+                .uri("/emails")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + resendApiKey)
+                .body(request)
+                .retrieve()
+                .body(ResendSendEmailResponse.class);
+
+            log.info(
+                "OTP email sent to={} for app={} resendId={}",
+                toEmail,
+                appName,
+                response != null ? response.id() : "unknown"
+            );
+        } catch (RestClientResponseException e) {
+            log.error(
+                "Failed to send OTP to={} for app={} status={} body={}",
+                toEmail,
+                appName,
+                e.getStatusCode(),
+                e.getResponseBodyAsString(),
+                e
+            );
+            throw new RuntimeException("Failed to send verification email. Please try again.");
         } catch (Exception e) {
             log.error("Failed to send OTP to={} for app={}", toEmail, appName, e);
             throw new RuntimeException("Failed to send verification email. Please try again.");
         }
+    }
+
+    private String buildFromHeader() {
+        return resendFromName == null || resendFromName.isBlank()
+            ? resendFromEmail
+            : resendFromName + " <" + resendFromEmail + ">";
     }
 
     private String buildHtml(String otp, int ttlMinutes, String appName) {
@@ -61,7 +109,7 @@ public class EmailService {
             + "<p>Here is your one-time verification code:</p>"
             + "<div class=\"code-box\"><div class=\"code\">" + otp + "</div>"
             + "<div class=\"ttl\">Expires in " + ttlMinutes + " minutes</div></div>"
-            + "<div class=\"note\">⚠ This code is for a single use. If you didn't request it, ignore this email.</div>"
+            + "<div class=\"note\">This code is for a single use. If you didn't request it, ignore this email.</div>"
             + "</div>"
             + "<div class=\"ftr\">This is an automated message. Do not reply to this email.</div>"
             + "</div></body></html>";
@@ -70,4 +118,13 @@ public class EmailService {
     private String escapeHtml(String s) {
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
+
+    private record ResendSendEmailRequest(
+        String from,
+        List<String> to,
+        String subject,
+        String html
+    ) {}
+
+    private record ResendSendEmailResponse(String id) {}
 }
