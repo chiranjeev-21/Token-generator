@@ -24,7 +24,7 @@ public class EmailValidationService {
     private static final Logger log = LoggerFactory.getLogger(EmailValidationService.class);
 
     private static final Set<String> PERSONAL_DOMAINS = Set.of(
-        "gmail.com", "googlemail.com",
+        "googlemail.com",
         "hotmail.com", "hotmail.in", "hotmail.co.uk", "hotmail.fr", "hotmail.de",
         "outlook.com", "outlook.in", "outlook.co.uk", "live.com", "live.in",
         "live.co.uk", "msn.com",
