@@ -41,7 +41,7 @@ public class ClientRegistry {
         /** Optional description shown as subtitle */
         private String description;
 
-        /** If true, blocks Gmail/Yahoo/Outlook/etc. — use for B2B or internal tools */
+        /** If true, only work email domains are accepted for this client */
         private boolean requireWorkEmail = false;
 
         /** How long issued tokens are valid */

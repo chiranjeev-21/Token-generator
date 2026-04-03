@@ -82,12 +82,12 @@ Purpose:
 
 Flow:
 
-1. The UI already blocks obvious personal/disposable domains on the client side.
+1. The UI already blocks disposable domains and applies client-specific personal-email rules on the client side.
 2. On blur or forced submit, it calls `POST /validate-email`.
 3. `TokenController.validateEmail()` resolves the client config.
 4. `EmailValidationService.validate(...)` runs:
    - basic email shape checks
-   - personal provider block
+   - personal provider block when the client requires work email
    - disposable provider block
    - MX lookup
 5. If validation passes, the API returns success immediately.
@@ -210,7 +210,7 @@ There is no live server-to-server call back to token-generator at submit time.
 1. User opens `https://token-generator.../?app=interview-bank`.
 2. UI loads the `interview-bank` client config.
 3. User types a company email.
-4. Client-side checks immediately reject obvious personal/disposable domains.
+4. Client-side checks immediately reject disposable domains and, for work-email-only clients, personal domains.
 5. Server-side validation confirms the domain can receive email.
 6. User requests an OTP.
 7. The OTP is stored in Redis with TTL and emailed through Resend.

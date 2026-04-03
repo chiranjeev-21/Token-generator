@@ -40,7 +40,7 @@ app:
     - id: interview-bank
       name: Interview Bank
       description: Verify your company email to receive a one-time contributor token.
-      require-work-email: true
+      require-work-email: false
       token-ttl-hours: 24
       claims:
         role: CONTRIBUTOR

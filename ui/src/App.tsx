@@ -9,8 +9,8 @@ const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '/api/v1/token').replac
 const api = axios.create({ baseURL: apiBaseUrl });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Personal email providers — ALWAYS blocked, no flag can override this.
-// These domains are free consumer services, not company-issued emails.
+// Personal and disposable providers are blocked only when the selected client
+// requires a work email.
 // ─────────────────────────────────────────────────────────────────────────────
 const PERSONAL_DOMAINS = new Set([
   'gmail.com', 'googlemail.com',
@@ -44,21 +44,20 @@ const DISPOSABLE_DOMAINS = new Set([
 
 /**
  * Instant check — runs synchronously on every keystroke.
- * Personal and disposable domains are ALWAYS rejected here.
- * No async, no flags, no race conditions.
+ * Personal and disposable domains are blocked only when requireWorkEmail is true.
  */
-function instantCheck(email: string): string | null {
+function instantCheck(email: string, requireWorkEmail: boolean): string | null {
   const lower = email.trim().toLowerCase();
   if (!lower.includes('@')) return null;
 
   const domain = lower.slice(lower.lastIndexOf('@') + 1);
   if (!domain || !domain.includes('.')) return null; // still typing the domain
 
-  if (DISPOSABLE_DOMAINS.has(domain)) {
+  if (requireWorkEmail && DISPOSABLE_DOMAINS.has(domain)) {
     return 'Disposable / temporary email addresses are not allowed.';
   }
 
-  if (PERSONAL_DOMAINS.has(domain)) {
+  if (requireWorkEmail && PERSONAL_DOMAINS.has(domain)) {
     return `"@${domain}" is a personal email provider and is not accepted. Please use your company email — e.g. you@amazon.com, you@microsoft.com.`;
   }
 
@@ -77,7 +76,7 @@ const DEFAULT_CLIENT: ClientInfo = {
   id: 'default',
   name: 'App',
   description: 'Verify your company email to receive a one-time access token.',
-  requireWorkEmail: true, // safe default — personal emails always blocked
+  requireWorkEmail: false,
   tokenTtlHours: 24,
 };
 
@@ -121,7 +120,7 @@ export default function App() {
       setValidationState('idle');
     }
 
-    const err = instantCheck(val); // no flags, no async, always correct
+    const err = instantCheck(val, clientInfo.requireWorkEmail);
     if (err) {
       setEmailError(err);
       setValidationState('invalid');
@@ -137,7 +136,7 @@ export default function App() {
     if (!email.includes('@') || !domain.includes('.')) return;
 
     // Don't call server if already blocked locally
-    const instant = instantCheck(email);
+    const instant = instantCheck(email, clientInfo.requireWorkEmail);
     if (instant) {
       setEmailError(instant);
       setValidationState('invalid');
@@ -165,7 +164,7 @@ export default function App() {
     e.preventDefault();
 
     // Run checks if user submitted without blurring
-    const instant = instantCheck(email);
+    const instant = instantCheck(email, clientInfo.requireWorkEmail);
     if (instant) {
       setEmailError(instant);
       setValidationState('invalid');

@@ -11,26 +11,18 @@ import java.util.Hashtable;
 import java.util.Set;
 
 /**
- * Email validation — three layers, always applied:
+ * Email validation controlled by requireWorkEmail:
  *
- * 1. Personal provider block — ALWAYS rejects Gmail, Yahoo, Outlook etc.
- *    regardless of any client flag. This is never optional.
+ * 1. If requireWorkEmail is false, only basic email shape is checked.
  *
- * 2. Disposable domain block — rejects throwaway services.
- *
- * 3. MX record check — verifies the domain can actually receive email.
- *    Fails open on DNS timeout so real corporate domains aren't blocked
- *    by transient network issues.
- *
- * The requireWorkEmail parameter is kept for API compatibility but no longer
- * affects whether personal domains are blocked — they always are.
+ * 2. If requireWorkEmail is true, the address must not be a personal or
+ *    disposable provider and the domain must have mail records.
  */
 @Service
 public class EmailValidationService {
 
     private static final Logger log = LoggerFactory.getLogger(EmailValidationService.class);
 
-    // Always blocked — no flag overrides this
     private static final Set<String> PERSONAL_DOMAINS = Set.of(
         "gmail.com", "googlemail.com",
         "hotmail.com", "hotmail.in", "hotmail.co.uk", "hotmail.fr", "hotmail.de",
@@ -62,9 +54,8 @@ public class EmailValidationService {
     );
 
     /**
-     * @param email            the email to validate
-     * @param requireWorkEmail kept for API compatibility — personal domains are
-     *                         always blocked regardless of this flag
+     * @param email the email to validate
+     * @param requireWorkEmail when true, reject personal email providers like Gmail/Yahoo/Outlook
      */
     public void validate(String email, boolean requireWorkEmail) {
         if (email == null || !email.contains("@")) {
@@ -77,14 +68,18 @@ public class EmailValidationService {
             throw new EmailValidationException("Please enter a valid email address.");
         }
 
-        // Layer 1: Always block personal providers
-        if (PERSONAL_DOMAINS.contains(domain)) {
+        if (!requireWorkEmail) {
+            return;
+        }
+
+        // Layer 1: Block personal providers for work-email-only clients
+        if (requireWorkEmail && PERSONAL_DOMAINS.contains(domain)) {
             throw new EmailValidationException(
                 "\"@" + domain + "\" is a personal email provider and is not accepted. " +
                 "Please use your company email — e.g. you@amazon.com, you@microsoft.com.");
         }
 
-        // Layer 2: Always block disposable emails
+        // Layer 2: Block disposable emails for work-email-only clients
         if (DISPOSABLE_DOMAINS.contains(domain)) {
             throw new EmailValidationException(
                 "Disposable email addresses are not allowed. Please use a real company email.");
